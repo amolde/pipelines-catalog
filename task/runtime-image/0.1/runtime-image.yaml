@@ -1,0 +1,122 @@
+apiVersion: tekton.dev/v1alpha1
+kind: Task
+metadata:
+  name: create-runtime-image
+  labels:
+    app.kubernetes.io/version: "0.1"
+  annotations:
+    tekton.dev/pipelines.minVersion: "0.19"
+    tekton.dev/tags: runtime, image, workspace
+    tekton.dev/displayName: "runtime image"
+spec:
+  description: >-
+    creates a runtime image from an intermediate docker image and pushes to the registry
+  # results:
+  #   - name: IMAGE_DIGEST
+  #     description: Digest of the image just built.
+  params:
+    - name: TLSVERIFY
+      description: Verify the TLS on the registry endpoint (for push/pull to a non-TLS registry)
+      default: "true"
+      type: string
+    - name: BUILDER_IMAGE
+      description: The location of the buildah builder image.
+      default: quay.io/buildah/stable:v1.22.0
+    - name: pipelineName
+      type: string
+    - name: pipelineRunName
+      type: string
+    - name: RUNTIME_BASE_IMAGE
+      description: Base image to build the runtime image
+      default: docker.io/openliberty/open-liberty
+    - name: SOURCE_ARTIFACT_TO_COPY_1
+      description: Source artifact to copy onto the runtime image
+      default: /deployments/liberty-rest-app.war
+    - name: TARGET_LOCATION_ARTIFACT_1
+      description: Destination for the source artifact
+      default: /config/apps/liberty-rest-app.war
+    - name: SOURCE_ARTIFACT_TO_COPY_2
+      description: Source artifact to copy onto the runtime image
+      default: /deployments/config
+    - name: TARGET_LOCATION_ARTIFACT_2
+      description: Destination for the source artifact
+      default: /config/
+    - default: 'gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/git-init:v0.21.0'
+      description: The image providing the git-init binary that this Task runs.
+      name: gitInitImage
+      type: string
+  resources:
+    inputs:
+      - name: intermediate-image
+        type: image
+    outputs:
+      - name: runtime-image
+        type: image
+  workspaces:
+    - name: source
+      mountPath: /workspace/source
+    - name: intermediate-docker-image-pvc
+      mountPath: /var/lib/containers
+  steps:
+    - name: gen-binary-extraction-dockerfile
+      command:
+        - /bin/sh
+        - '-c'
+      args:
+        - |-
+          echo "FROM localhost/$(resources.inputs.intermediate-image.url) as intermediate-image" > /env-params/ext-dockerfile.gen
+          echo "FROM $(params.RUNTIME_BASE_IMAGE) as runtime-image" >> /env-params/ext-dockerfile.gen
+          echo "COPY --from=intermediate-image $(params.SOURCE_ARTIFACT_TO_COPY_1) $(params.TARGET_LOCATION_ARTIFACT_1)" >> /env-params/ext-dockerfile.gen
+          echo "COPY --from=intermediate-image $(params.SOURCE_ARTIFACT_TO_COPY_2) $(params.TARGET_LOCATION_ARTIFACT_2)" >> /env-params/ext-dockerfile.gen
+          echo "LABEL github.repository.url=\"$(git remote get-url origin)\" \\" >> /env-params/ext-dockerfile.gen
+          echo "github.repository.fullname=\"$(basename `git config --get remote.origin.url` .git)\" \\" >> /env-params/ext-dockerfile.gen
+          git log -1 --pretty=format:'github.commit.ref="%D"  \%ngithub.commit.id="%H"  \%ngithub.commit.message="%f"  \%ngithub.commit.date="%cD"  \%ngithub.commit_author="%aE"  \' >> /env-params/ext-dockerfile.gen
+          echo "pipeline.name=\"$(params.pipelineName)\" \\" >> /env-params/ext-dockerfile.gen
+          echo "pipeline.run=\"$(params.pipelineRunName)\" \\" >> /env-params/ext-dockerfile.gen
+          echo "pipeline.task.run.name=\"$(context.taskRun.name)\"" >> /env-params/ext-dockerfile.gen
+          echo "------------------------------"
+          cat /env-params/ext-dockerfile.gen
+          echo "------------------------------"
+      image: $(params.gitInitImage)
+      volumeMounts:
+        - name: envparams
+          mountPath: /env-params
+      workingDir: /workspace/source
+    - name: extract-built-object
+      command:
+        - buildah
+        - bud
+        - '--tls-verify=$(params.TLSVERIFY)'
+        - '--storage-driver=vfs'
+        - '--layers'
+        - '-f'
+        - /env-params/ext-dockerfile.gen
+        - '-t'
+        - $(resources.outputs.runtime-image.url)
+        - .
+      image: $(params.BUILDER_IMAGE)
+      securityContext:
+        privileged: true
+      resources: {}
+      volumeMounts:
+        - name: envparams
+          mountPath: /env-params
+      workingDir: /var/lib/containers
+    - name: push-image-to-openshift
+      command:
+        - buildah
+        - push
+        - '--storage-driver=vfs'
+        - '--tls-verify=$(params.TLSVERIFY)'
+        - $(resources.outputs.runtime-image.url)
+        - 'docker://$(resources.outputs.runtime-image.url)'
+      image: $(params.BUILDER_IMAGE)
+      securityContext:
+        privileged: true
+      resources: {}
+    # - name: digest-to-results
+    #   image: $(params.BUILDER_IMAGE)
+    #   script: cat $(workspaces.source.path)/image-digest | tee /tekton/results/IMAGE_DIGEST
+  volumes:
+    - emptyDir: {}
+      name: envparams
