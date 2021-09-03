@@ -12,10 +12,9 @@ spec:
   description: >-
     s2i-java task clones a Git repository and builds and
     pushes a container image using S2I and a Java builder image.
-
-  results:
-    - name: IMAGE_DIGEST
-      description: Digest of the image just built.
+  # results:
+  #   - name: IMAGE_DIGEST
+  #     description: Digest of the image just built.
   params:
     - name: VERSION
       description: The tag of java imagestream for java version
@@ -33,6 +32,18 @@ spec:
       description: Additional Maven arguments
       default: ""
       type: string
+    - name: S2I_SOURCE_DEPLOYMENTS_FILTER
+      description: https://docs.openshift.com/online/pro/using_images/s2i_images/java.html
+      default: "*.war"
+      type: string
+    - name: S2I_SOURCE_CONFIGURATION_DIR
+      description: https://docs.openshift.com/online/pro/using_images/s2i_images/java.html
+      default: "src/main/liberty"
+      type: string
+    - name: S2I_TARGET_CONFIGURATION_DIR
+      description: https://docs.openshift.com/online/pro/using_images/s2i_images/java.html
+      default: "/deployments"
+      type: string
     - name: MAVEN_CLEAR_REPO
       description: Remove the Maven repository after the artifact is built
       default: "false"
@@ -41,15 +52,18 @@ spec:
       description: The base URL of a mirror used for retrieving artifacts
       default: ""
       type: string
-    - name: IMAGE
-      description: Location of the repo where image has to be pushed
-      type: string
     - name: BUILDER_IMAGE
       description: The location of the buildah builder image.
-      default: quay.io/buildah/stable:v1.17.0
+      default: quay.io/buildah/stable:v1.22.0
+  resources:
+    outputs:
+      - name: intermediate-image
+        type: image
   workspaces:
     - name: source
       mountPath: /workspace/source
+    - name: intermediate-docker-image-pvc
+      mountPath: /var/lib/containers
   steps:
     - name: gen-env-file
       image: quay.io/openshift-pipeline/s2i
@@ -60,6 +74,13 @@ spec:
       args:
         - |-
           echo "MAVEN_CLEAR_REPO=$(params.MAVEN_CLEAR_REPO)" > env-file
+
+          # https://docs.openshift.com/online/pro/using_images/s2i_images/java.html
+          # https://robertopozzi.medium.com/implement-your-ci-cd-process-with-red-hat-openshift-pipelines-3936cbea7bf4
+          echo "S2I_TARGET_DEPLOYMENTS_DIR=/deployments" >> env-file
+          echo "S2I_SOURCE_DEPLOYMENTS_FILTER=$(params.S2I_SOURCE_DEPLOYMENTS_FILTER)" >> env-file
+          echo "S2I_SOURCE_CONFIGURATION_DIR=$(params.S2I_SOURCE_CONFIGURATION_DIR)" >> env-file
+          echo "S2I_TARGET_CONFIGURATION_DIR=$(params.S2I_TARGET_CONFIGURATION_DIR)" >> env-file
 
           [[ '$(params.MAVEN_ARGS_APPEND)' != "" ]] &&
             echo "MAVEN_ARGS_APPEND=$(params.MAVEN_ARGS_APPEND)" >> env-file
@@ -96,25 +117,25 @@ spec:
     - name: build
       image: $(params.BUILDER_IMAGE)
       workingdir: /gen-source
-      command: ['buildah', 'bud', '--storage-driver=vfs', '--tls-verify=$(params.TLSVERIFY)', '--layers', '-f', '/gen-source/Dockerfile.gen', '-t', '$(params.IMAGE)', '.']
+      command: ['buildah', 'bud', '--storage-driver=vfs', '--tls-verify=$(params.TLSVERIFY)', '--layers', '-f', '/gen-source/Dockerfile.gen', '-t', '$(resources.outputs.intermediate-image.url)', '.']
+      securityContext:
+        privileged: true
       volumeMounts:
-        - name: varlibcontainers
-          mountPath: /var/lib/containers
         - name: gen-source
           mountPath: /gen-source
-    - name: push
+    - name: view-images
+      command:
+        - buildah
+        - images
+        - '--storage-driver=vfs'
       image: $(params.BUILDER_IMAGE)
-      workingDir: $(workspaces.source.path)
-      command: ['buildah', 'push', '--storage-driver=vfs', '--tls-verify=$(params.TLSVERIFY)', '--digestfile=$(workspaces.source.path)/image-digest', '$(params.IMAGE)', 'docker://$(params.IMAGE)']
-      volumeMounts:
-        - name: varlibcontainers
-          mountPath: /var/lib/containers
-    - name: digest-to-results
-      image: $(params.BUILDER_IMAGE)
-      script: cat $(workspaces.source.path)/image-digest | tee /tekton/results/IMAGE_DIGEST
+      resources: {}
+      securityContext:
+        privileged: true
+    # - name: digest-to-results
+    #   image: $(params.BUILDER_IMAGE)
+    #   script: cat $(workspaces.source.path)/image-digest | tee /tekton/results/IMAGE_DIGEST
   volumes:
-    - name: varlibcontainers
-      emptyDir: {}
     - name: gen-source
       emptyDir: {}
     - name: envparams
