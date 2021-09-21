@@ -17,6 +17,21 @@ spec:
     - name: branch-name
       type: string
       description: The git branch to clone.
+    - name: RUNTIME_BASE_IMAGE
+      description: Base image to build the runtime image
+      default: docker.io/openliberty/open-liberty
+    - name: SOURCE_ARTIFACT_TO_COPY_1
+      description: Source artifact to copy onto the runtime image
+      default: /deployments/liberty-rest-app.war
+    - name: TARGET_LOCATION_ARTIFACT_1
+      description: Destination for the source artifact
+      default: /config/apps/liberty-rest-app.war
+    - name: SOURCE_ARTIFACT_TO_COPY_2
+      description: Source artifact to copy onto the runtime image
+      default: /deployments/config
+    - name: TARGET_LOCATION_ARTIFACT_2
+      description: Destination for the source artifact
+      default: /config/
   workspaces:
     - name: intermediate-docker-image-pvc
       description: |
@@ -69,6 +84,16 @@ spec:
           value: $(context.pipelineRun.name)
         - name: pipelineName
           value: $(context.pipeline.name)
+        - name: RUNTIME_BASE_IMAGE
+          value: $(params.RUNTIME_BASE_IMAGE)
+        - name: SOURCE_ARTIFACT_TO_COPY_1
+          value: $(params.SOURCE_ARTIFACT_TO_COPY_1)
+        - name: TARGET_LOCATION_ARTIFACT_1
+          value: $(params.TARGET_LOCATION_ARTIFACT_1)
+        - name: SOURCE_ARTIFACT_TO_COPY_2
+          value: $(params.SOURCE_ARTIFACT_TO_COPY_2)
+        - name: TARGET_LOCATION_ARTIFACT_2
+          value: $(params.TARGET_LOCATION_ARTIFACT_2)
       resources:
         inputs:
           - name: intermediate-image
