@@ -32,6 +32,9 @@ spec:
     - name: TARGET_LOCATION_ARTIFACT_2
       description: Destination for the source artifact
       default: /config/
+    - name: S2I_SOURCE_DEPLOYMENTS_FILTER
+      description: Files we are deploying
+      default: *.war
   workspaces:
     - name: intermediate-docker-image-pvc
       description: |
@@ -64,6 +67,8 @@ spec:
       params:
         - name: MAVEN_ARGS_APPEND
           value: ""
+        - name: S2I_SOURCE_DEPLOYMENTS_FILTER
+          value: $(params.S2I_SOURCE_DEPLOYMENTS_FILTER)
       resources:
         outputs:
         - name: intermediate-image
