@@ -17,6 +17,15 @@ spec:
     - name: branch-name
       type: string
       description: The git branch to clone.
+    - name: namespace
+      type: string
+      description: Namespace where you will be deploying the app (used in configmap)
+    - name: application
+      type: string
+      description: Name of the application (used in configmap)
+    - name: target_environment
+      type: string
+      description: Is it development/test/production?
     - name: RUNTIME_BASE_IMAGE
       description: Base image to build the runtime image
       default: docker.io/openliberty/open-liberty
@@ -108,3 +117,18 @@ spec:
             resource: runtime-image
       runAfter:
         - build
+    # oc adm create-kubeconfig --client-certificate=/path/to/client.crt --client-key=/path/to/client.key --certificate-authority=/path/to/ca.crt            
+    - name: set-configmaps
+      taskRef:
+        kind: Task
+        name: openshift-client
+      workspaces:
+        - name: manifest-dir
+          workspace: shared-data
+      runAfter:
+        - create-runtime-image
+      params:
+        - name: SCRIPT
+          value: |
+            oc create -n ${params.namespace} configmap ${params.application}-env-configdropins --from-file=config/${params.target_environment}/configDropins
+
