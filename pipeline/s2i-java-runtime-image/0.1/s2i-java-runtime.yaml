@@ -43,7 +43,7 @@ spec:
       default: /config/
     - name: S2I_SOURCE_DEPLOYMENTS_FILTER
       description: Files we are deploying
-      default: "*.war"
+      default: '*.war'
   workspaces:
     - name: intermediate-docker-image-pvc
       description: |
