@@ -130,5 +130,5 @@ spec:
       params:
         - name: SCRIPT
           value: |
-            oc create -n ${params.namespace} configmap ${params.application}-env-configdropins --from-file=config/${params.target_environment}/configDropins
+            oc create -n $(params.namespace) configmap $(params.application)-env-configdropins --from-file=config/$(params.target_environment)/configDropins
 
