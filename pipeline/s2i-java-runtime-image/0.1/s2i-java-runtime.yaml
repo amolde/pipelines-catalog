@@ -44,6 +44,9 @@ spec:
     - name: S2I_SOURCE_DEPLOYMENTS_FILTER
       description: Files we are deploying
       default: '*.war'
+    - name: JAVA_IMAGESTREAM_URL
+      description: Java Imagestream Url
+      default: 'image-registry.openshift-image-registry.svc:5000/openshift/openjdk-17:latest'
   workspaces:
     - name: intermediate-docker-image-pvc
       description: |
@@ -78,6 +81,8 @@ spec:
           value: ""
         - name: S2I_SOURCE_DEPLOYMENTS_FILTER
           value: $(params.S2I_SOURCE_DEPLOYMENTS_FILTER)
+        - name: JAVA_IMAGESTREAM_URL
+          value: $(params.JAVA_IMAGESTREAM_URL)
       resources:
         outputs:
         - name: intermediate-image
