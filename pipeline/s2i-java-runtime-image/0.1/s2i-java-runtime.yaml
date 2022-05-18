@@ -28,7 +28,7 @@ spec:
       description: Is it development/test/production?
     - name: RUNTIME_BASE_IMAGE
       description: Base image to build the runtime image
-      default: icr.io/appcafe/open-liberty:22.0.0.3-kernel-slim-java17-openj9-ubi
+      default: docker.io/openliberty/open-liberty:22.0.0.4-full-java17-openj9
     - name: SOURCE_ARTIFACT_TO_COPY_1
       description: Source artifact to copy onto the runtime image
       default: /deployments/liberty-rest-app.war
@@ -47,6 +47,9 @@ spec:
     - name: JAVA_IMAGESTREAM_URL
       description: Java Imagestream Url
       default: 'image-registry.openshift-image-registry.svc:5000/openshift/openjdk-17:latest'
+    - name: MAVEN_ARGS_APPEND
+      description: Maven additional arguments
+      default: ""
   workspaces:
     - name: intermediate-docker-image-pvc
       description: |
@@ -78,7 +81,7 @@ spec:
           workspace: intermediate-docker-image-pvc
       params:
         - name: MAVEN_ARGS_APPEND
-          value: ""
+          value: $(params.MAVEN_ARGS_APPEND)
         - name: S2I_SOURCE_DEPLOYMENTS_FILTER
           value: $(params.S2I_SOURCE_DEPLOYMENTS_FILTER)
         - name: JAVA_IMAGESTREAM_URL
