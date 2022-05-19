@@ -50,6 +50,21 @@ spec:
     - name: MAVEN_ARGS_APPEND
       description: Maven additional arguments
       default: ""
+    - name: MAVEN_S2I_GOALS
+      description: Maven goals to run
+      default: liberty:package package
+    - name: S2I_SOURCE_DATA_DIR
+      description: Libraries to copy over along with other artifacts
+      default: "target/liberty/wlp/usr/servers/defaultServer/libraries"
+    - name: S2I_TARGET_DATA_DIR
+      description: Libraries to copy over along with other artifacts - target
+      default: "/deployments/libraries/"
+    - name: SOURCE_ARTIFACT_TO_COPY_3
+      description: Source artifact to copy onto the runtime image
+      default: /deployments/libraries
+    - name: TARGET_LOCATION_ARTIFACT_3
+      description: Destination for the source artifact
+      default: /opt/ol/wlp/usr/servers/defaultServer/libraries/
   workspaces:
     - name: intermediate-docker-image-pvc
       description: |
@@ -86,6 +101,12 @@ spec:
           value: $(params.S2I_SOURCE_DEPLOYMENTS_FILTER)
         - name: JAVA_IMAGESTREAM_URL
           value: $(params.JAVA_IMAGESTREAM_URL)
+        - name: MAVEN_S2I_GOALS
+          value: $(params.MAVEN_S2I_GOALS)
+        - name: S2I_SOURCE_DATA_DIR
+          value: $(params.S2I_SOURCE_DATA_DIR)
+        - name: S2I_TARGET_DATA_DIR
+          value: $(params.S2I_TARGET_DATA_DIR)
       resources:
         outputs:
         - name: intermediate-image
@@ -116,6 +137,10 @@ spec:
           value: $(params.SOURCE_ARTIFACT_TO_COPY_2)
         - name: TARGET_LOCATION_ARTIFACT_2
           value: $(params.TARGET_LOCATION_ARTIFACT_2)
+        - name: SOURCE_ARTIFACT_TO_COPY_3
+          value: $(params.SOURCE_ARTIFACT_TO_COPY_3)
+        - name: TARGET_LOCATION_ARTIFACT_3
+          value: $(params.TARGET_LOCATION_ARTIFACT_3)
       resources:
         inputs:
           - name: intermediate-image
@@ -139,5 +164,4 @@ spec:
         - name: SCRIPT
           value: |
             oc create -n $(params.namespace) configmap $(params.application)-env-configdropins --from-file=config/$(params.target_environment)/configDropins
-            oc create -n $(params.namespace) configmap $(params.application)-env-configprops --from-file=src/main/java/resources/META-INF/microprofile-config.properties --from-file=src/main/java/resources/META-INF/microprofile-config-$(params.target_environment).properties
 

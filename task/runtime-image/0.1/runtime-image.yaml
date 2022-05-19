@@ -41,6 +41,12 @@ spec:
     - name: TARGET_LOCATION_ARTIFACT_2
       description: Destination for the source artifact
       default: /config/
+    - name: SOURCE_ARTIFACT_TO_COPY_3
+      description: Source artifact to copy onto the runtime image
+      default: /deployments/libraries
+    - name: TARGET_LOCATION_ARTIFACT_3
+      description: Destination for the source artifact
+      default: /opt/ol/wlp/usr/servers/defaultServer/libraries/
     - default: 'gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/git-init:v0.21.0'
       description: The image providing the git-init binary that this Task runs.
       name: gitInitImage
@@ -68,6 +74,7 @@ spec:
           echo "FROM $(params.RUNTIME_BASE_IMAGE) as runtime-image" >> /env-params/ext-dockerfile.gen
           echo "COPY --from=intermediate-image $(params.SOURCE_ARTIFACT_TO_COPY_1) $(params.TARGET_LOCATION_ARTIFACT_1)" >> /env-params/ext-dockerfile.gen
           echo "COPY --from=intermediate-image $(params.SOURCE_ARTIFACT_TO_COPY_2) $(params.TARGET_LOCATION_ARTIFACT_2)" >> /env-params/ext-dockerfile.gen
+          echo "COPY --from=intermediate-image $(params.SOURCE_ARTIFACT_TO_COPY_3) $(params.TARGET_LOCATION_ARTIFACT_3)" >> /env-params/ext-dockerfile.gen
           echo "LABEL github.repository.url=\"$(git remote get-url origin)\" \\" >> /env-params/ext-dockerfile.gen
           echo "github.repository.fullname=\"$(basename `git config --get remote.origin.url` .git)\" \\" >> /env-params/ext-dockerfile.gen
           git log -1 --pretty=format:'github.commit.ref="%D"  \%ngithub.commit.id="%H"  \%ngithub.commit.message="%f"  \%ngithub.commit.date="%cD"  \%ngithub.commit_author="%aE"  \' >> /env-params/ext-dockerfile.gen

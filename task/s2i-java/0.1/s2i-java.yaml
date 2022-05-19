@@ -12,6 +12,9 @@ spec:
   description: >-
     s2i-java task clones a Git repository and builds and
     pushes a container image using S2I and a Java builder image.
+
+  # https://docs.openshift.com/online/pro/using_images/s2i_images/java.html
+
   # results:
   #   - name: IMAGE_DIGEST
   #     description: Digest of the image just built.
@@ -55,6 +58,15 @@ spec:
     - name: BUILDER_IMAGE
       description: The location of the buildah builder image.
       default: quay.io/buildah/stable:v1.22.0
+    - name: MAVEN_S2I_GOALS
+      description: Maven goals to run
+      default: package
+    - name: S2I_SOURCE_DATA_DIR
+      description: Libraries to copy over along with other artifacts
+      default: "target/liberty/wlp/usr/servers/defaultServer/libraries"
+    - name: S2I_TARGET_DATA_DIR
+      description: Libraries to copy over along with other artifacts - target
+      default: "/deployments/libraries/"
   resources:
     outputs:
       - name: intermediate-image
@@ -81,6 +93,9 @@ spec:
           echo "S2I_SOURCE_DEPLOYMENTS_FILTER=$(params.S2I_SOURCE_DEPLOYMENTS_FILTER)" >> env-file
           echo "S2I_SOURCE_CONFIGURATION_DIR=$(params.S2I_SOURCE_CONFIGURATION_DIR)" >> env-file
           echo "S2I_TARGET_CONFIGURATION_DIR=$(params.S2I_TARGET_CONFIGURATION_DIR)" >> env-file
+          echo "MAVEN_S2I_GOALS=$(params.MAVEN_S2I_GOALS)" >> env-file
+          echo "S2I_SOURCE_DATA_DIR=$(params.S2I_SOURCE_DATA_DIR)" >> env-file
+          echo "S2I_TARGET_DATA_DIR=$(params.S2I_TARGET_DATA_DIR)" >> env-file
 
           [[ '$(params.MAVEN_ARGS_APPEND)' != "" ]] &&
             echo "MAVEN_ARGS_APPEND=$(params.MAVEN_ARGS_APPEND)" >> env-file
